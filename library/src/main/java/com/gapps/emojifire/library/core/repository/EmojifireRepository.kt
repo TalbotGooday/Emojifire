@@ -24,10 +24,11 @@ class EmojifireRepository {
 
 	suspend fun loadData(context: Context) = withContext(Dispatchers.IO) {
 		val currentVersion = getCurrentCachedVersion(context)
+		val latestVersion = getLatestEmojiVersion()
 
 		val result = mutableListOf<Emoji>()
 
-		if (currentVersion == EMOJI_VERSION) {
+		if (currentVersion == latestVersion) {
 			result.addAll(readEmojiData(context))
 		}
 
@@ -35,7 +36,7 @@ class EmojifireRepository {
 
 		//Make request if needed
 		val request: Request = Request.Builder()
-				.url("https://unicode.org/Public/emoji/$EMOJI_VERSION/emoji-test.txt")
+				.url("https://unicode.org/Public/emoji/$latestVersion/emoji-test.txt")
 				.get()
 				.build()
 
@@ -60,7 +61,6 @@ class EmojifireRepository {
 									val emoji = parseLine(line)
 
 									if (emoji != null) {
-										emoji.category = "${emojiBox.group} (${emojiBox.subgroup})"
 										emoji.group = emojiBox.group
 										emoji.subgroup = emojiBox.subgroup
 
@@ -79,7 +79,7 @@ class EmojifireRepository {
 	private suspend fun readEmojiData(context: Context): List<Emoji> = withContext(Dispatchers.IO) {
 		val json = Json(JsonConfiguration.Stable)
 
-		val emojiDir = File(context.filesDir, "emoji-cache")
+		val emojiDir = getEmojiCacheDir(context)
 
 		if (emojiDir.exists()) {
 			val emojiDataStr = File(emojiDir, EMOJI_VERSION).readText(Charset.defaultCharset())
@@ -94,7 +94,7 @@ class EmojifireRepository {
 		try {
 			val json = Json(JsonConfiguration.Stable)
 
-			val emojiDir = File(context.filesDir, "emoji-cache")
+			val emojiDir = getEmojiCacheDir(context)
 
 			if (emojiDir.exists()) {
 				emojiDir.delete()
@@ -113,21 +113,37 @@ class EmojifireRepository {
 
 		if (data.size != 3) return null
 
-		val charAndName = "^(\\S+) E\\d+\\.\\d+ (.+)\$".toRegex().find(data[2])?.groups
+		val charAndName = "^\\S+ E\\d+\\.\\d+ (.+)\$".toRegex().find(data[2])?.groups
 
 		return Emoji().apply {
 			codes = data[0]
-			status = data[1]
-			char = charAndName?.get(1)?.value ?: ""
-			name = charAndName?.get(2)?.value ?: ""
+			name = charAndName?.get(1)?.value ?: ""
 		}
 	}
 
-	fun getCurrentCachedVersion(context: Context): String? {
-		val emojiDir = File(context.filesDir, "emoji-cache")
+	private fun getCurrentCachedVersion(context: Context): String? {
+		val emojiDir = getEmojiCacheDir(context)
 
 		return emojiDir.list()?.getOrNull(0)
 	}
 
+	private fun getEmojiCacheDir(context: Context) =
+			File(context.cacheDir, "emoji-cache")
 
+	private suspend fun getLatestEmojiVersion() = withContext(Dispatchers.IO) {
+		val request = Request.Builder()
+				.url("https://unicode.org/Public/emoji/")
+				.get()
+				.build()
+
+		val response = client.newCall(request).execute().use { response ->
+			return@use response.body
+					?.string()
+		} ?: return@withContext null
+
+		return@withContext "(?:<a.+>(\\S+)\\/<\\/a>).+(\\d{2}-\\w{3}-\\d{4} \\d{2}:\\d{2})"
+				.toRegex().findAll(response).maxBy {
+			it.groupValues.getOrNull(1)?.toFloatOrNull() ?: 0f
+		}?.groups?.get(1)?.value
+	}
 }

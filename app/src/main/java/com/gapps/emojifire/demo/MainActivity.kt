@@ -13,9 +13,13 @@ class MainActivity : AppCompatActivity() {
 		loadEmoji.setOnClickListener {
 			loadEmojiData()
 		}
+
+		clearEmoji.setOnClickListener {
+			text.text = null
+		}
 	}
 
 	private fun loadEmojiData() {
-		text.text = Emojifire.getAllEmojiList()?.map { it.char }?.joinToString { "$it " }
+		text.text = Emojifire.getAllEmojiList()?.map { it.get() }?.joinToString { "$it " }
 	}
 }
