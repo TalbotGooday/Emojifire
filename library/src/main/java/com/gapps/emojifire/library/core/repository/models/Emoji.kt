@@ -1,5 +1,6 @@
 package com.gapps.emojifire.library.core.repository.models
 
+import com.gapps.emojifire.library.utils.unicodeToUtf16
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -9,13 +10,12 @@ data class Emoji(
 		var subgroup: String? = null,
 		var name: String? = null
 ) {
+	private var emoji: String? = null
 	fun get(): String? {
-			return codes?.let { codeToStr(it) }
-	}
+		if (emoji == null) {
+			emoji = codes?.unicodeToUtf16()
+		}
 
-	private fun codeToStr(it: String): String{
-		val result = it.split(" ").map { Character.toChars(it.toInt(16))}
-				.reduce { acc, chars -> acc + chars }
-		return String(result)
+		return emoji
 	}
 }

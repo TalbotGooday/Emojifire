@@ -20,6 +20,6 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun loadEmojiData() {
-		text.text = Emojifire.getAllEmojiList()?.map { it.get() }?.joinToString { "$it " }
+		text.setText(Emojifire.getAllEmojiList()?.map { it.get() }?.joinToString { it ?: "" })
 	}
 }
